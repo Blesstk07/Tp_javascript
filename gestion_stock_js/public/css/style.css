@@ -1,0 +1,9 @@
+* { box-sizing: border-box; }
+body { margin: 0; font-family: Arial, sans-serif; color: #20242a; background: #f5f7fa; }
+header { padding: 18px 24px; background: #172b4d; color: white; }
+header h1 { margin: 0; font-size: 1.35rem; }
+nav { display: flex; flex-wrap: wrap; gap: 16px; padding: 14px 24px; background: white; }
+nav a { color: #174ea6; text-decoration: none; }
+main { max-width: 1100px; margin: 28px auto; padding: 0 18px; }
+section, #content { background: white; border-radius: 10px; padding: 18px; }
+@media (max-width: 650px) { nav { gap: 10px; } main { margin-top: 16px; } }

@@ -1,0 +1,2 @@
+-- Données de test à préparer par la personne 1/personne chargée des tests.
+-- Insérer quelques catégories, produits et fournisseurs cohérents.

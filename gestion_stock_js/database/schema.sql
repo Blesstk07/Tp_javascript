@@ -1,0 +1,5 @@
+-- IMPORTER ICI LE SCHEMA SQL COMMUN ET VALIDE PAR LE GROUPE.
+-- Tables attendues selon le projet : categories, products, suppliers,
+-- supplies, supply_items, sales, sale_items, stock_movements.
+-- Ne pas laisser le code Node.js générer ou modifier le schéma.
+-- Cible : MySQL 8.0.16+ / InnoDB / utf8mb4.
