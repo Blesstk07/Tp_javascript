@@ -17,20 +17,19 @@ Copy-Item .env.example .env
 ```
 
 4. Modifier `.env` avec les identifiants MySQL locaux.
-5. Créer la base et importer le schéma SQL commun validé par le groupe :
-
-```sql
-CREATE DATABASE gestion_stock_js CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-```
-
-Puis importer `database/schema.sql` avec MySQL Workbench ou la commande `mysql`.
-6. Démarrer :
+5. Importer `database/schema.sql` avec MySQL Workbench ou la commande `mysql`.
+   Le script crée automatiquement la base `gestion_stock_js`, la sélectionne,
+   puis crée les tables. Vérifier que `DB_NAME=gestion_stock_js` dans `.env`.
+6. Pour charger les données de démonstration, importer `database/seed.sql`
+   après le schéma. Ce script remplace uniquement les enregistrements marqués
+   `TEST-` et peut être relancé sans dupliquer ces données.
+7. Démarrer :
 
 ```powershell
 npm run dev
 ```
 
-7. Vérifier `http://localhost:8003/api/health` et ouvrir `http://localhost:8003/app/`.
+8. Vérifier `http://localhost:8003/api/health` et ouvrir `http://localhost:8003/app/`.
 
 ## Répartition
 

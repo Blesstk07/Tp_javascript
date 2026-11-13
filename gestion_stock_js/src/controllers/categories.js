@@ -1,11 +1,40 @@
-function notImplemented(req, res) {
-  res.status(501).json({
-    error: {
-      code: 'NOT_IMPLEMENTED',
-      message: 'Endpoint pas encore implémenté',
-      details: []
-    }
-  });
+const { z } = require('zod');
+const service = require('../services/categories');
+
+const categorySchema = z.object({
+  name: z.string().trim().min(1).max(100),
+  description: z.string().trim().max(2000).nullable().optional(),
+});
+
+const categoryUpdateSchema = categorySchema.partial();
+
+async function listCategories(req, res, next) {
+  try {
+    const result = await service.listCategories(req.query);
+    res.status(200).json(result);
+  } catch (error) {
+    next(error);
+  }
 }
 
-module.exports = { notImplemented };
+async function createCategory(req, res, next) {
+  try {
+    const payload = categorySchema.parse(req.body || {});
+    const result = await service.createCategory(payload);
+    res.status(201).json(result);
+  } catch (error) {
+    next(error);
+  }
+}
+
+async function updateCategory(req, res, next) {
+  try {
+    const payload = categoryUpdateSchema.parse(req.body || {});
+    const result = await service.updateCategory(req.params.id, payload);
+    res.status(200).json(result);
+  } catch (error) {
+    next(error);
+  }
+}
+
+module.exports = { listCategories, createCategory, updateCategory };

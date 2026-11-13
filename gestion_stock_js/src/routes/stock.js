@@ -1,8 +1,8 @@
 const router = require('express').Router();
 const controller = require('../controllers/stock');
 
-// TODO : implémenter les méthodes conformément à CONTRAT_API.md.
-// Les routes provisoires retournent 501 tant que le contrôleur n'est pas développé.
-router.all('*', controller.notImplemented);
+router.get('/', controller.listStock);
+router.post('/entries', controller.createStockEntry);
+router.get('/movements', controller.listStockMovements);
 
 module.exports = router;
