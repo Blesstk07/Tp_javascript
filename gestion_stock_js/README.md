@@ -1,44 +1,43 @@
-# Gestion de stock JS — kit de démarrage
+# Gestion de stock JS
 
-Stack : JavaScript natif (interface) + Node.js/Express (API) + MySQL 8 (base de données).
-Port prévu : 8003.
+Application de gestion de stock : interface HTML/CSS/JavaScript, API Node.js/Express et base MariaDB/MySQL.
 
-## Installation
+## Prérequis
 
-Prérequis : Node.js LTS, npm, MySQL 8.0.16+ et Git.
+- Node.js 18 ou ultérieur et npm
+- MySQL 8.0.16+ ou MariaDB 10.4+
+- La base locale doit correspondre aux valeurs de `DB_*` dans `.env`
 
-1. Décompresser le dossier.
-2. Ouvrir un terminal dans `gestion_stock_js`.
-3. Exécuter :
+## Installation et démarrage (PowerShell)
+
+Depuis le dossier `gestion_stock_js` :
 
 ```powershell
-npm install
 Copy-Item .env.example .env
+npm install
 ```
 
-4. Modifier `.env` avec les identifiants MySQL locaux.
-5. Importer `database/schema.sql` avec MySQL Workbench ou la commande `mysql`.
-   Le script crée automatiquement la base `gestion_stock_js`, la sélectionne,
-   puis crée les tables. Vérifier que `DB_NAME=gestion_stock_js` dans `.env`.
-6. Pour charger les données de démonstration, importer `database/seed.sql`
-   après le schéma. Ce script remplace uniquement les enregistrements marqués
-   `TEST-` et peut être relancé sans dupliquer ces données.
-7. Démarrer :
+Renseignez les identifiants dans `.env`, puis importez `database/schema.sql` dans MySQL/MariaDB. Pour charger les données de démonstration facultatives, importez ensuite `database/seed.sql`.
 
 ```powershell
-npm run dev
+npm start
 ```
 
-8. Vérifier `http://localhost:8003/api/health` et ouvrir `http://localhost:8003/app/`.
+Ouvrez `http://localhost:8003/` (la même interface reste disponible sous `http://localhost:8003/app/`). Le point `http://localhost:8003/api/health` vérifie maintenant la connexion MySQL et retourne `503 DB_UNAVAILABLE` si elle échoue.
 
-## Répartition
+En développement, `npm run dev` redémarre le serveur à chaque modification.
 
-- Personne 1 : `public/` (HTML, CSS, JavaScript navigateur).
-- Personne 2 : `src/` et `database/` (Express, API, SQL).
-- Les deux : `CONTRAT_API.md`, tests Postman, intégration et validation.
+## Fonctionnement
 
-## Important
+- Les catégories, fournisseurs, produits, stocks, mouvements, ventes et statistiques utilisent l’API et la base réelle.
+- Un nouveau produit commence avec un stock nul. Les entrées s’enregistrent dans la page Stock, afin que chaque variation soit historisée.
+- Les ventes et les approvisionnements sont atomiques. Le serveur verrouille les produits concernés, empêche un stock négatif et recalcule les montants à partir des prix en base.
+- Les montants sont traités sans calcul en virgule flottante.
 
-Ce kit crée le squelette et les conventions de travail. Il ne contient pas encore l'implémentation métier complète des 19 endpoints. Les routes non encore développées répondent `501 NOT_IMPLEMENTED`. Implémentez-les selon `CONTRAT_API.md` avant la démonstration.
+## Tests
 
-Ne changez pas les noms de champs, chemins, codes HTTP ou formats de réponse sans accord des deux personnes.
+```powershell
+npm test
+```
+
+Les tests automatisés couvrent la validation de la pagination, l’arithmétique monétaire et les transactions. Les vérifications MySQL et parcours complets sont décrits dans `RAPPORT_AUDIT_FINAL.txt`.

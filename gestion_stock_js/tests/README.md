@@ -1,6 +1,12 @@
 # Tests
 
-- Exporter ici la collection Postman : `gestion_stock_js.postman_collection.json`.
-- Prévoir les scénarios T-01 à T-12 de la feuille de route.
-- Tester en particulier les doublons SKU, les identifiants inexistants,
-  les ventes avec stock insuffisant et les ventes concurrentes.
+Lancer les tests automatisés depuis `gestion_stock_js` :
+
+```powershell
+npm test
+```
+
+Les tests vérifient les limites de pagination, l'exactitude des calculs
+monétaires et le rollback/retry transactionnel. Le parcours de bout en bout
+sur MySQL/MariaDB et les résultats de l'audit sont détaillés dans
+`RAPPORT_AUDIT_FINAL.txt`.

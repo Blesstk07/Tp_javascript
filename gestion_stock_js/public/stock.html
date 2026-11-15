@@ -3,23 +3,63 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>État du stock</title>
+  <title>Stock | Gestion de stock</title>
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
   <header><h1>Gestion de stock</h1></header>
-  <nav>
+  <nav aria-label="Navigation principale">
     <a href="index.html">Tableau de bord</a>
     <a href="products.html">Produits</a>
     <a href="categories.html">Catégories</a>
     <a href="suppliers.html">Fournisseurs</a>
-    <a href="stock.html">Stock</a>
+    <a href="stock.html" aria-current="page">Stock</a>
     <a href="sales.html">Ventes</a>
   </nav>
   <main>
-    <h2>État du stock</h2>
-    <p id="message">Interface à développer par la personne 1 selon CONTRAT_API.md.</p>
-    <div id="content"></div>
+    <h2>Stock</h2>
+    <p class="lead">État du stock, approvisionnements et mouvements.</p>
+    <div id="message" class="message" role="alert" hidden></div>
+    <div class="stack">
+      <section class="card">
+        <h3>État du stock</h3>
+        <div class="toolbar">
+          <label><input type="checkbox" id="low-only" style="width:auto"> Afficher seulement les stocks faibles et ruptures</label>
+        </div>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Produit</th><th>SKU</th><th>Catégorie</th><th class="num">Quantité</th><th class="num">Seuil min.</th><th>Statut</th></tr></thead>
+          <tbody id="stock-rows"></tbody>
+        </table></div>
+        <div class="pager" id="stock-pager"></div>
+      </section>
+      <section class="card">
+        <h3>Enregistrer un approvisionnement</h3>
+        <form id="entry-form" novalidate>
+          <div class="field"><label for="supplier_id">Fournisseur</label><select id="supplier_id" required></select></div>
+          <div class="table-wrap"><table>
+            <thead><tr><th>Produit</th><th class="num">Quantité</th><th class="num">Coût unitaire</th><th></th></tr></thead>
+            <tbody id="entry-lines"></tbody>
+          </table></div>
+          <div class="field" style="margin-top:12px"><label for="notes">Note <small>(facultatif)</small></label><input id="notes"></div>
+          <div class="actions">
+            <button class="btn ghost" type="button" id="add-line">Ajouter une ligne</button>
+            <button class="btn" type="submit">Enregistrer l’approvisionnement</button>
+          </div>
+        </form>
+      </section>
+      <section class="card">
+        <h3>Historique des mouvements</h3>
+        <div class="toolbar">
+          <div class="field"><label for="move-type">Type</label>
+            <select id="move-type"><option value="">Tous</option><option value="IN">Entrées</option><option value="OUT">Sorties</option></select></div>
+        </div>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Date</th><th>Produit</th><th>Type</th><th class="num">Quantité</th><th>Note</th></tr></thead>
+          <tbody id="move-rows"></tbody>
+        </table></div>
+        <div class="pager" id="move-pager"></div>
+      </section>
+    </div>
   </main>
   <script src="js/api.js"></script>
   <script src="js/stock.js"></script>

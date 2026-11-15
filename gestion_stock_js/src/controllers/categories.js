@@ -1,10 +1,11 @@
 const { z } = require('zod');
 const service = require('../services/categories');
+const { parseResourceId } = require('../services/helpers');
 
 const categorySchema = z.object({
   name: z.string().trim().min(1).max(100),
   description: z.string().trim().max(2000).nullable().optional(),
-});
+}).strict();
 
 const categoryUpdateSchema = categorySchema.partial();
 
@@ -30,7 +31,7 @@ async function createCategory(req, res, next) {
 async function updateCategory(req, res, next) {
   try {
     const payload = categoryUpdateSchema.parse(req.body || {});
-    const result = await service.updateCategory(req.params.id, payload);
+    const result = await service.updateCategory(parseResourceId(req.params.id), payload);
     res.status(200).json(result);
   } catch (error) {
     next(error);

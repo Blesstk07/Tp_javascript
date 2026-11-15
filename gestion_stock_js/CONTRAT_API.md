@@ -37,9 +37,9 @@ Réponse de liste :
 
 Codes attendus : `VALIDATION_ERROR`, `NOT_FOUND`, `DUPLICATE_SKU`,
 `DUPLICATE_NAME`, `INSUFFICIENT_STOCK`, `CONFLICT`, `INTERNAL_ERROR`.
-
-HTTP 400 pour validation, 404 pour ressource absente, 409 pour conflit,
-500 pour erreur serveur. `DELETE` réussi : 204 sans corps.
+`DB_UNAVAILABLE` signale une base inaccessible. HTTP 400 pour validation,
+404 pour ressource absente, 409 pour conflit, 500 pour erreur serveur et 503
+pour indisponibilité de la base. `DELETE` réussi : 204 sans corps.
 
 ## Les 19 endpoints
 
@@ -86,6 +86,9 @@ HTTP 400 pour validation, 404 pour ressource absente, 409 pour conflit,
 ```
 
 `PUT /products/:id` accepte les mêmes champs que la création.
+La création d'un produit doit utiliser `quantity: 0`. Toute modification du
+stock passe par un approvisionnement ou une vente afin de conserver l'historique
+des mouvements.
 La réponse produit expose au minimum : `id`, `category_id`, `category_name`,
 `name`, `sku`, `description`, `purchase_price`, `sale_price`, `quantity`,
 `min_quantity`.
@@ -161,6 +164,8 @@ Les noms définitifs des compteurs doivent être confirmés ensemble avant inté
 ```json
 { "status": "ok" }
 ```
+Si MySQL/MariaDB est inaccessible, le point de santé retourne HTTP 503 avec le
+format d'erreur commun et le code `DB_UNAVAILABLE`.
 
 ## Règles métier non négociables
 

@@ -1,5 +1,15 @@
+const { randomUUID } = require('node:crypto');
 const pool = require('../config/db');
-const { parsePagination, normalizeMoney, toHttpError } = require('./helpers');
+const {
+  MAX_UNIT_CENTS,
+  addMoney,
+  multiplyMoney,
+  parsePagination,
+  parseResourceId,
+  normalizeMoney,
+  toHttpError,
+} = require('./helpers');
+const { runTransaction } = require('./transactions');
 
 function computeStatus(quantity, minQuantity) {
   if (Number(quantity) === 0) return 'OUT';
@@ -8,8 +18,11 @@ function computeStatus(quantity, minQuantity) {
 }
 
 async function listStock(query = {}) {
-  const { page, limit, offset } = parsePagination(query);
+  const { page, limit, offset } = parsePagination(query, ['low_stock', 'lowStock']);
   const lowStockValue = query.low_stock ?? query.lowStock ?? '';
+  if (lowStockValue !== '' && !['true', 'false'].includes(String(lowStockValue).toLowerCase())) {
+    throw toHttpError(400, 'VALIDATION_ERROR', 'Paramètre low_stock invalide', []);
+  }
   const lowStockOnly = String(lowStockValue).toLowerCase() === 'true';
 
   let sql = `SELECT p.id AS product_id, p.name, p.sku, p.stock_quantity AS quantity, p.alert_threshold AS min_quantity,
@@ -43,31 +56,37 @@ async function listStock(query = {}) {
 }
 
 async function createStockEntry(payload) {
-  const supplierId = Number(payload.supplier_id ?? payload.supplierId);
-  const items = Array.isArray(payload.items) ? payload.items : [];
+  const supplierId = parseResourceId(payload.supplier_id ?? payload.supplierId, 'supplier_id');
+  const inputItems = Array.isArray(payload.items) ? payload.items : [];
   const notes = payload.notes == null || payload.notes === '' ? null : String(payload.notes).trim();
 
-  if (!supplierId || supplierId <= 0) {
-    throw toHttpError(400, 'VALIDATION_ERROR', 'Le fournisseur est requis', []);
-  }
-  if (!items.length) {
+  if (!inputItems.length) {
     throw toHttpError(400, 'VALIDATION_ERROR', 'Au moins un produit est requis', []);
   }
+
+  const items = inputItems.map((item) => {
+    const productId = parseResourceId(item.product_id ?? item.productId, 'product_id');
+    const quantity = Number(item.quantity);
+    if (!Number.isSafeInteger(quantity) || quantity <= 0 || quantity > 4294967295) {
+      throw toHttpError(400, 'VALIDATION_ERROR', 'La quantité doit être un entier positif', []);
+    }
+    return {
+      productId,
+      quantity,
+      unitCost: normalizeMoney(item.unit_cost ?? item.unitCost, MAX_UNIT_CENTS),
+    };
+  });
 
   const [supplierRows] = await pool.execute('SELECT id FROM suppliers WHERE id = ? AND is_active = 1', [supplierId]);
   if (!supplierRows[0]) {
     throw toHttpError(404, 'NOT_FOUND', 'Fournisseur introuvable', []);
   }
 
-  const connection = await pool.getConnection();
-
-  try {
-    await connection.beginTransaction();
-
-    const productIds = items.map((item) => Number(item.product_id ?? item.productId));
+  const supplyId = await runTransaction(async (connection) => {
+    const productIds = [...new Set(items.map((item) => item.productId))].sort((a, b) => a - b);
     const placeholders = productIds.map(() => '?').join(', ');
-    const [productRows] = await connection.query(
-      `SELECT id, stock_quantity, name, alert_threshold FROM products WHERE id IN (${placeholders}) FOR UPDATE`,
+    const [productRows] = await connection.execute(
+      `SELECT id, stock_quantity, name FROM products WHERE id IN (${placeholders}) ORDER BY id FOR UPDATE`,
       productIds
     );
 
@@ -75,26 +94,19 @@ async function createStockEntry(payload) {
       throw toHttpError(404, 'NOT_FOUND', 'Un ou plusieurs produits sont introuvables', []);
     }
 
+    const productsById = new Map(productRows.map((row) => [Number(row.id), row]));
+    const quantitiesByProduct = new Map();
     for (const item of items) {
-      const productId = Number(item.product_id ?? item.productId);
-      const quantity = Number(item.quantity);
-      const unitCost = normalizeMoney(item.unit_cost ?? item.unitCost ?? '0.00');
-
-      if (!productId || productId <= 0) {
-        throw toHttpError(400, 'VALIDATION_ERROR', 'Produit invalide', []);
-      }
-      if (!Number.isInteger(quantity) || quantity <= 0) {
-        throw toHttpError(400, 'VALIDATION_ERROR', 'La quantité doit être supérieure à 0', []);
-      }
-      if (!productRows.some((row) => Number(row.id) === productId)) {
-        throw toHttpError(404, 'NOT_FOUND', `Produit ${productId} introuvable`, []);
-      }
-      if (Number(normalizeMoney(unitCost)) < 0) {
-        throw toHttpError(400, 'VALIDATION_ERROR', 'Le coût unitaire ne peut pas être négatif', []);
+      quantitiesByProduct.set(item.productId, (quantitiesByProduct.get(item.productId) || 0) + item.quantity);
+    }
+    for (const [productId, quantity] of quantitiesByProduct) {
+      const current = Number(productsById.get(productId).stock_quantity);
+      if (current + quantity > 4294967295) {
+        throw toHttpError(409, 'CONFLICT', 'La quantité dépasse la capacité de stock autorisée', []);
       }
     }
 
-    const supplyNumber = `SUP-${Date.now()}-${Math.random().toString(16).slice(2, 8).toUpperCase()}`;
+    const supplyNumber = `SUP-${randomUUID()}`;
     const [supplyResult] = await connection.execute(
       'INSERT INTO supplies (supplier_id, supply_number, total_amount, notes, supplied_at) VALUES (?, ?, 0.00, ?, NOW())',
       [supplierId, supplyNumber, notes]
@@ -103,10 +115,8 @@ async function createStockEntry(payload) {
     let totalAmount = '0.00';
 
     for (const item of items) {
-      const productId = Number(item.product_id ?? item.productId);
-      const quantity = Number(item.quantity);
-      const unitCost = normalizeMoney(item.unit_cost ?? item.unitCost ?? '0.00');
-      const lineTotal = normalizeMoney((Number(quantity) * Number(unitCost)).toFixed(2));
+      const { productId, quantity, unitCost } = item;
+      const lineTotal = multiplyMoney(unitCost, quantity);
 
       const [insertItemResult] = await connection.execute(
         'INSERT INTO supply_items (supply_id, product_id, quantity, unit_cost, line_total) VALUES (?, ?, ?, ?, ?)',
@@ -123,26 +133,25 @@ async function createStockEntry(payload) {
         [quantity, productId]
       );
 
-      totalAmount = normalizeMoney((Number(totalAmount) + Number(lineTotal)).toFixed(2));
+      totalAmount = addMoney(totalAmount, lineTotal);
     }
 
     await connection.execute('UPDATE supplies SET total_amount = ? WHERE id = ?', [totalAmount, supplyResult.insertId]);
-    await connection.commit();
+    return supplyResult.insertId;
+  });
 
-    const [rows] = await connection.execute('SELECT * FROM supplies WHERE id = ?', [supplyResult.insertId]);
-    return rows[0];
-  } catch (error) {
-    await connection.rollback();
-    throw error;
-  } finally {
-    connection.release();
-  }
+  const [rows] = await pool.execute('SELECT * FROM supplies WHERE id = ?', [supplyId]);
+  return rows[0];
 }
 
 async function listStockMovements(query = {}) {
-  const { page, limit, offset } = parsePagination(query);
-  const productId = Number(query.product_id ?? query.productId);
+  const { page, limit, offset } = parsePagination(query, ['product_id', 'productId', 'type']);
+  const rawProductId = query.product_id ?? query.productId;
+  const productId = rawProductId === undefined ? undefined : parseResourceId(rawProductId, 'product_id');
   const type = String(query.type || '').toUpperCase();
+  if (type && type !== 'IN' && type !== 'OUT') {
+    throw toHttpError(400, 'VALIDATION_ERROR', 'Paramètre type invalide', []);
+  }
 
   let sql = `SELECT sm.id, sm.product_id, p.name AS product_name, sm.movement_type, sm.quantity,
                   sm.notes, sm.moved_at
@@ -151,7 +160,7 @@ async function listStockMovements(query = {}) {
              WHERE 1 = 1`;
   const params = [];
 
-  if (Number.isFinite(productId) && productId > 0) {
+  if (productId !== undefined) {
     sql += ' AND sm.product_id = ?';
     params.push(productId);
   }

@@ -3,23 +3,47 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Fournisseurs</title>
+  <title>Fournisseurs | Gestion de stock</title>
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
   <header><h1>Gestion de stock</h1></header>
-  <nav>
+  <nav aria-label="Navigation principale">
     <a href="index.html">Tableau de bord</a>
     <a href="products.html">Produits</a>
     <a href="categories.html">Catégories</a>
-    <a href="suppliers.html">Fournisseurs</a>
+    <a href="suppliers.html" aria-current="page">Fournisseurs</a>
     <a href="stock.html">Stock</a>
     <a href="sales.html">Ventes</a>
   </nav>
   <main>
     <h2>Fournisseurs</h2>
-    <p id="message">Interface à développer par la personne 1 selon CONTRAT_API.md.</p>
-    <div id="content"></div>
+    <p class="lead">Gérez vos fournisseurs.</p>
+    <div id="message" class="message" role="alert" hidden></div>
+    <div class="grid layout">
+      <section class="card">
+        <h3 id="form-title">Ajouter un fournisseur</h3>
+        <form id="supplier-form" novalidate>
+          <div class="field"><label for="name">Nom</label><input id="name" required maxlength="150"></div>
+          <div class="field"><label for="contact_name">Personne de contact <small>(facultatif)</small></label><input id="contact_name"></div>
+          <div class="field"><label for="phone">Téléphone <small>(facultatif)</small></label><input id="phone" type="tel"></div>
+          <div class="field"><label for="email">E-mail <small>(facultatif)</small></label><input id="email" type="email"></div>
+          <div class="field"><label for="address">Adresse <small>(facultatif)</small></label><textarea id="address" rows="2"></textarea></div>
+          <div class="actions">
+            <button class="btn" type="submit">Enregistrer</button>
+            <button class="btn ghost" type="button" id="cancel-btn" hidden>Annuler la modification</button>
+          </div>
+        </form>
+      </section>
+      <section class="card">
+        <h3>Liste des fournisseurs</h3>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Nom</th><th>Contact</th><th>Téléphone</th><th>E-mail</th><th>Adresse</th><th>Actions</th></tr></thead>
+          <tbody id="rows"></tbody>
+        </table></div>
+        <div class="pager" id="pager"></div>
+      </section>
+    </div>
   </main>
   <script src="js/api.js"></script>
   <script src="js/suppliers.js"></script>

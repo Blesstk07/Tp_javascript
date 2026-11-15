@@ -41,9 +41,6 @@ async function createCategory(payload) {
 }
 
 async function updateCategory(id, payload) {
-  const name = payload.name == null ? null : String(payload.name).trim();
-  const description = payload.description == null ? null : String(payload.description).trim();
-
   const [existingRows] = await pool.execute('SELECT * FROM categories WHERE id = ?', [id]);
   if (!existingRows[0]) {
     throw toHttpError(404, 'NOT_FOUND', 'Catégorie introuvable', []);
@@ -52,7 +49,8 @@ async function updateCategory(id, payload) {
   const updates = [];
   const values = [];
 
-  if (name !== null) {
+  if (Object.prototype.hasOwnProperty.call(payload, 'name')) {
+    const name = String(payload.name).trim();
     if (!name) {
       throw toHttpError(400, 'VALIDATION_ERROR', 'Le nom de la catégorie est requis', []);
     }
@@ -60,9 +58,9 @@ async function updateCategory(id, payload) {
     values.push(name);
   }
 
-  if (description !== null) {
+  if (Object.prototype.hasOwnProperty.call(payload, 'description')) {
     updates.push('description = ?');
-    values.push(description || null);
+    values.push(payload.description == null || payload.description === '' ? null : String(payload.description).trim());
   }
 
   if (updates.length === 0) {

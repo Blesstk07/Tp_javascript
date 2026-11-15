@@ -1,9 +1,54 @@
-* { box-sizing: border-box; }
-body { margin: 0; font-family: Arial, sans-serif; color: #20242a; background: #f5f7fa; }
-header { padding: 18px 24px; background: #172b4d; color: white; }
-header h1 { margin: 0; font-size: 1.35rem; }
-nav { display: flex; flex-wrap: wrap; gap: 16px; padding: 14px 24px; background: white; }
-nav a { color: #174ea6; text-decoration: none; }
-main { max-width: 1100px; margin: 28px auto; padding: 0 18px; }
-section, #content { background: white; border-radius: 10px; padding: 18px; }
-@media (max-width: 650px) { nav { gap: 10px; } main { margin-top: 16px; } }
+:root{--bg:#f4f6f5;--card:#fff;--ink:#1f2a27;--muted:#64726d;--line:#dbe2df;--accent:#1d6b5a;--accent-d:#14513f;--danger:#b3261e;--warn:#b26a00;--ok:#1d6b5a;--radius:8px}
+*{box-sizing:border-box}
+body{margin:0;font:16px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--ink)}
+header{background:var(--accent-d);color:#fff;padding:14px 20px}
+header h1{margin:0;font-size:1.25rem}
+nav{display:flex;flex-wrap:wrap;gap:4px;background:var(--card);border-bottom:1px solid var(--line);padding:6px 16px;position:sticky;top:0;z-index:5}
+nav a{padding:8px 14px;border-radius:var(--radius);color:var(--ink);text-decoration:none;font-weight:500}
+nav a:hover{background:var(--bg)}
+nav a[aria-current=page]{background:var(--accent);color:#fff}
+main{max-width:1150px;margin:0 auto;padding:20px 16px 40px}
+h2{margin:0 0 4px;font-size:1.6rem}
+.lead{margin:0 0 16px;color:var(--muted)}
+h3{margin:0 0 12px;font-size:1.05rem}
+.message{padding:10px 14px;border-radius:var(--radius);margin:0 0 16px;border:1px solid}
+.message.success{background:#e6f4ee;border-color:#9ccdb8;color:#0f4b36}
+.message.error{background:#fbeae9;border-color:#e7aaa6;color:#7a1712}
+.grid{display:grid;gap:16px}
+.layout{grid-template-columns:minmax(260px,340px) 1fr;align-items:start}
+.stats{grid-template-columns:repeat(auto-fit,minmax(170px,1fr));margin-bottom:20px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:16px}
+.stat strong{display:block;font-size:1.9rem;line-height:1.2}
+.stat span{color:var(--muted);font-size:.9rem}
+.stat.alert strong{color:var(--warn)}
+form .field{display:flex;flex-direction:column;gap:4px;margin-bottom:12px}
+label{font-weight:600;font-size:.9rem}
+label small{font-weight:400;color:var(--muted)}
+input,select,textarea{font:inherit;padding:8px 10px;border:1px solid var(--line);border-radius:6px;background:#fff;width:100%}
+input:focus,select:focus,textarea:focus,.btn:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.actions{display:flex;flex-wrap:wrap;gap:8px}
+.btn{font:inherit;font-weight:600;padding:8px 14px;border-radius:6px;border:1px solid var(--accent);background:var(--accent);color:#fff;cursor:pointer}
+.btn:hover{background:var(--accent-d)}
+.btn.ghost{background:#fff;color:var(--accent)}
+.btn.ghost:hover{background:var(--bg)}
+.btn.danger{background:#fff;color:var(--danger);border-color:var(--danger)}
+.btn.danger:hover{background:#fbeae9}
+.btn.small{padding:4px 10px;font-size:.85rem}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.toolbar{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;margin-bottom:12px}
+.toolbar .field{margin:0;min-width:160px;flex:1}
+.table-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:.93rem}
+th,td{text-align:left;padding:9px 10px;border-bottom:1px solid var(--line);vertical-align:middle}
+th{font-size:.8rem;color:var(--muted);font-weight:600;background:var(--bg)}
+td.num,th.num{text-align:right;white-space:nowrap}
+td.empty{text-align:center;color:var(--muted);padding:22px}
+.badge{display:inline-block;padding:2px 10px;border-radius:999px;font-size:.8rem;font-weight:600}
+.badge.OK,.badge.IN{background:#e6f4ee;color:var(--ok)}
+.badge.LOW{background:#fff1d6;color:var(--warn)}
+.badge.OUT{background:#fbeae9;color:var(--danger)}
+.pager{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:12px;color:var(--muted);font-size:.9rem}
+.total{font-size:1.3rem;font-weight:700;text-align:right;margin:12px 0}
+.stack{display:grid;gap:16px}
+@media(max-width:800px){.layout{grid-template-columns:1fr}.row2{grid-template-columns:1fr}nav a{padding:8px 10px}main{padding:14px 10px 30px}}

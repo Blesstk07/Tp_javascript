@@ -3,23 +3,55 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Ventes</title>
+  <title>Ventes | Gestion de stock</title>
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
   <header><h1>Gestion de stock</h1></header>
-  <nav>
+  <nav aria-label="Navigation principale">
     <a href="index.html">Tableau de bord</a>
     <a href="products.html">Produits</a>
     <a href="categories.html">Catégories</a>
     <a href="suppliers.html">Fournisseurs</a>
     <a href="stock.html">Stock</a>
-    <a href="sales.html">Ventes</a>
+    <a href="sales.html" aria-current="page">Ventes</a>
   </nav>
   <main>
     <h2>Ventes</h2>
-    <p id="message">Interface à développer par la personne 1 selon CONTRAT_API.md.</p>
-    <div id="content"></div>
+    <p class="lead">Enregistrez une vente et consultez l’historique.</p>
+    <div id="message" class="message" role="alert" hidden></div>
+    <div class="grid layout">
+      <section class="card">
+        <h3>Nouvelle vente</h3>
+        <form id="sale-form" novalidate>
+          <div class="field"><label for="product">Produit</label><select id="product"></select></div>
+          <div class="field"><label for="qty">Quantité</label><input id="qty" type="number" min="1" step="1" value="1"></div>
+          <div class="actions"><button class="btn ghost" type="button" id="add-btn">Ajouter à la vente</button></div>
+        </form>
+      </section>
+      <section class="card">
+        <h3>Récapitulatif de la vente</h3>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Produit</th><th class="num">Prix unitaire</th><th class="num">Quantité</th><th class="num">Sous-total</th><th></th></tr></thead>
+          <tbody id="cart"></tbody>
+        </table></div>
+        <div class="total" id="total">Total : 0,00</div>
+        <div class="actions">
+          <button class="btn" type="button" id="validate-btn">Valider la vente</button>
+          <button class="btn ghost" type="button" id="clear-btn">Vider</button>
+        </div>
+        <p class="lead" style="margin-top:10px">Le total affiché est indicatif : le serveur recalcule et valide la vente et le stock.</p>
+      </section>
+    </div>
+    <section class="card" style="margin-top:16px">
+      <h3>Historique des ventes</h3>
+      <div class="table-wrap"><table>
+        <thead><tr><th>N° de vente</th><th>Date</th><th class="num">Articles</th><th class="num">Total</th><th></th></tr></thead>
+        <tbody id="rows"></tbody>
+      </table></div>
+      <div class="pager" id="pager"></div>
+      <div id="detail" style="margin-top:16px"></div>
+    </section>
   </main>
   <script src="js/api.js"></script>
   <script src="js/sales.js"></script>

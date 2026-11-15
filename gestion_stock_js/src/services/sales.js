@@ -1,5 +1,15 @@
+const { randomUUID } = require('node:crypto');
 const pool = require('../config/db');
-const { parsePagination, normalizeMoney, toHttpError, normalizeSaleItemPayload } = require('./helpers');
+const {
+  addMoney,
+  multiplyMoney,
+  parsePagination,
+  parseResourceId,
+  normalizeMoney,
+  toHttpError,
+  normalizeSaleItemPayload,
+} = require('./helpers');
+const { runTransaction } = require('./transactions');
 
 async function listSales(query = {}) {
   const { page, limit, offset } = parsePagination(query);
@@ -63,22 +73,33 @@ async function getSaleById(id) {
 }
 
 async function createSale(payload) {
-  const items = Array.isArray(payload.items) ? payload.items.map(normalizeSaleItemPayload) : [];
+  const inputItems = Array.isArray(payload.items) ? payload.items.map(normalizeSaleItemPayload) : [];
   const notes = payload.notes == null || payload.notes === '' ? null : String(payload.notes).trim();
 
-  if (!items.length) {
+  if (!inputItems.length) {
     throw toHttpError(400, 'VALIDATION_ERROR', 'Au moins un produit est requis', []);
   }
 
-  const connection = await pool.getConnection();
+  const quantitiesByProduct = new Map();
+  for (const item of inputItems) {
+    const productId = parseResourceId(item.product_id, 'product_id');
+    const quantity = Number(item.quantity);
+    if (!Number.isSafeInteger(quantity) || quantity <= 0 || quantity > 4294967295) {
+      throw toHttpError(400, 'VALIDATION_ERROR', 'La quantité doit être un entier positif', []);
+    }
+    const total = (quantitiesByProduct.get(productId) || 0) + quantity;
+    if (!Number.isSafeInteger(total) || total > 4294967295) {
+      throw toHttpError(400, 'VALIDATION_ERROR', 'La quantité totale demandée dépasse la limite autorisée', []);
+    }
+    quantitiesByProduct.set(productId, total);
+  }
 
-  try {
-    await connection.beginTransaction();
-
-    const productIds = items.map((item) => Number(item.product_id ?? item.productId));
+  const items = [...quantitiesByProduct].map(([productId, quantity]) => ({ productId, quantity }));
+  const saleId = await runTransaction(async (connection) => {
+    const productIds = items.map((item) => item.productId).sort((a, b) => a - b);
     const placeholders = productIds.map(() => '?').join(', ');
-    const [productRows] = await connection.query(
-      `SELECT id, stock_quantity, selling_price, name, sku FROM products WHERE id IN (${placeholders}) FOR UPDATE`,
+    const [productRows] = await connection.execute(
+      `SELECT id, stock_quantity, selling_price, name, sku FROM products WHERE id IN (${placeholders}) ORDER BY id FOR UPDATE`,
       productIds
     );
 
@@ -91,15 +112,7 @@ async function createSale(payload) {
     let totalAmount = '0.00';
 
     for (const item of items) {
-      const productId = Number(item.product_id ?? item.productId);
-      const quantity = Number(item.quantity);
-      if (!productId || productId <= 0) {
-        throw toHttpError(400, 'VALIDATION_ERROR', 'Produit invalide', []);
-      }
-      if (!Number.isInteger(quantity) || quantity <= 0) {
-        throw toHttpError(400, 'VALIDATION_ERROR', 'La quantité doit être supérieure à 0', []);
-      }
-
+      const { productId, quantity } = item;
       const product = productsById.get(productId);
       if (!product) {
         throw toHttpError(404, 'NOT_FOUND', `Produit ${productId} introuvable`, []);
@@ -110,12 +123,12 @@ async function createSale(payload) {
       }
 
       const unitPrice = normalizeMoney(product.selling_price ?? '0.00');
-      const lineTotal = normalizeMoney((Number(quantity) * Number(unitPrice)).toFixed(2));
-      totalAmount = normalizeMoney((Number(totalAmount) + Number(lineTotal)).toFixed(2));
+      const lineTotal = multiplyMoney(unitPrice, quantity);
+      totalAmount = addMoney(totalAmount, lineTotal);
       itemDetails.push({ productId, quantity, unitPrice, lineTotal });
     }
 
-    const saleNumber = `SAL-${Date.now()}-${Math.random().toString(16).slice(2, 8).toUpperCase()}`;
+    const saleNumber = `SAL-${randomUUID()}`;
     const [saleResult] = await connection.execute(
       'INSERT INTO sales (sale_number, total_amount, notes, sold_at) VALUES (?, 0.00, ?, NOW())',
       [saleNumber, notes]
@@ -139,15 +152,10 @@ async function createSale(payload) {
     }
 
     await connection.execute('UPDATE sales SET total_amount = ? WHERE id = ?', [totalAmount, saleResult.insertId]);
-    await connection.commit();
+    return saleResult.insertId;
+  });
 
-    return getSaleById(saleResult.insertId);
-  } catch (error) {
-    await connection.rollback();
-    throw error;
-  } finally {
-    connection.release();
-  }
+  return getSaleById(saleId);
 }
 
 module.exports = { listSales, getSaleById, createSale };

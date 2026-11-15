@@ -1,5 +1,14 @@
 const pool = require('../config/db');
-const { parsePagination, normalizeMoney, normalizeProductPayload, toHttpError, buildDuplicateError, productResponse } = require('./helpers');
+const {
+  MAX_UNIT_CENTS,
+  parsePagination,
+  parseResourceId,
+  normalizeMoney,
+  normalizeProductPayload,
+  toHttpError,
+  buildDuplicateError,
+  productResponse,
+} = require('./helpers');
 
 function buildProductWhere(query = {}) {
   const filter = [];
@@ -12,8 +21,9 @@ function buildProductWhere(query = {}) {
     params.push(likeValue, likeValue);
   }
 
-  const categoryId = Number(query.category_id ?? query.categoryId);
-  if (Number.isFinite(categoryId) && categoryId > 0) {
+  const rawCategoryId = query.category_id ?? query.categoryId;
+  if (rawCategoryId !== undefined) {
+    const categoryId = parseResourceId(rawCategoryId, 'category_id');
     filter.push('p.category_id = ?');
     params.push(categoryId);
   }
@@ -23,7 +33,10 @@ function buildProductWhere(query = {}) {
 }
 
 async function listProducts(query = {}) {
-  const { page, limit, offset } = parsePagination(query);
+  const { page, limit, offset } = parsePagination(query, ['search', 'category_id', 'categoryId']);
+  if (query.search !== undefined && (typeof query.search !== 'string' || query.search.length > 150)) {
+    throw toHttpError(400, 'VALIDATION_ERROR', 'Paramètre search invalide', []);
+  }
   const { clause, params } = buildProductWhere(query);
 
   const [countRows] = await pool.execute(
@@ -50,8 +63,8 @@ async function listProducts(query = {}) {
       name: row.name,
       sku: row.sku,
       description: row.description || null,
-      purchase_price: normalizeMoney(row.purchase_price ?? '0.00'),
-      sale_price: normalizeMoney(row.selling_price ?? row.sale_price ?? '0.00'),
+      purchase_price: normalizeMoney(row.purchase_price ?? '0.00', MAX_UNIT_CENTS),
+      sale_price: normalizeMoney(row.selling_price ?? row.sale_price ?? '0.00', MAX_UNIT_CENTS),
       quantity: Number(row.stock_quantity ?? row.quantity ?? 0),
       min_quantity: Number(row.alert_threshold ?? row.min_quantity ?? 0),
       unit: row.unit || 'piece',
@@ -86,8 +99,8 @@ async function createProduct(payload) {
     name: String(body.name || '').trim(),
     sku: String(body.sku || '').trim(),
     description: body.description == null ? null : String(body.description).trim() || null,
-    purchase_price: normalizeMoney(body.purchase_price ?? '0.00'),
-    sale_price: normalizeMoney(body.sale_price ?? body.selling_price ?? '0.00'),
+    purchase_price: normalizeMoney(body.purchase_price ?? '0.00', MAX_UNIT_CENTS),
+    sale_price: normalizeMoney(body.sale_price ?? body.selling_price ?? '0.00', MAX_UNIT_CENTS),
     quantity: Number(body.quantity ?? body.stock_quantity ?? 0),
     min_quantity: Number(body.min_quantity ?? body.alert_threshold ?? 5),
   };
@@ -103,6 +116,9 @@ async function createProduct(payload) {
   }
   if (!Number.isInteger(item.quantity) || item.quantity < 0) {
     throw toHttpError(400, 'VALIDATION_ERROR', 'La quantité doit être un entier positif', []);
+  }
+  if (item.quantity !== 0) {
+    throw toHttpError(400, 'VALIDATION_ERROR', 'Le stock initial doit être nul ; utilisez /stock/entries pour enregistrer une entrée', []);
   }
   if (!Number.isInteger(item.min_quantity) || item.min_quantity < 0) {
     throw toHttpError(400, 'VALIDATION_ERROR', 'La quantité minimale doit être un entier positif', []);
@@ -132,6 +148,9 @@ async function createProduct(payload) {
 
 async function updateProduct(id, payload) {
   const body = normalizeProductPayload(payload || {});
+  if (body.quantity !== undefined || body.stock_quantity !== undefined) {
+    throw toHttpError(400, 'VALIDATION_ERROR', 'Le stock se modifie via /stock/entries ou une vente', []);
+  }
   const [existingRows] = await pool.execute('SELECT * FROM products WHERE id = ?', [id]);
   if (!existingRows[0]) {
     throw toHttpError(404, 'NOT_FOUND', 'Produit introuvable', []);
@@ -182,14 +201,14 @@ async function updateProduct(id, payload) {
   }
 
   if (body.purchase_price !== undefined) {
-    const value = normalizeMoney(body.purchase_price);
+    const value = normalizeMoney(body.purchase_price, MAX_UNIT_CENTS);
     updates.push('purchase_price = ?');
     values.push(value);
     next.purchase_price = value;
   }
 
   if (body.sale_price !== undefined || body.selling_price !== undefined) {
-    const value = normalizeMoney(body.sale_price ?? body.selling_price);
+    const value = normalizeMoney(body.sale_price ?? body.selling_price, MAX_UNIT_CENTS);
     updates.push('selling_price = ?');
     values.push(value);
     next.selling_price = value;

@@ -3,13 +3,13 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Gestion de stock</title>
+  <title>Tableau de bord | Gestion de stock</title>
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
   <header><h1>Gestion de stock</h1></header>
-  <nav>
-    <a href="index.html">Tableau de bord</a>
+  <nav aria-label="Navigation principale">
+    <a href="index.html" aria-current="page">Tableau de bord</a>
     <a href="products.html">Produits</a>
     <a href="categories.html">Catégories</a>
     <a href="suppliers.html">Fournisseurs</a>
@@ -18,8 +18,16 @@
   </nav>
   <main>
     <h2>Tableau de bord</h2>
-    <p id="message">Connexion à l'API...</p>
-    <section id="dashboard"></section>
+    <p class="lead">Vue d’ensemble de votre activité.</p>
+    <div id="message" class="message" role="alert" hidden></div>
+    <section class="grid stats" id="stats"></section>
+    <section class="card">
+      <h3>Produits en stock faible ou en rupture</h3>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Produit</th><th>SKU</th><th>Catégorie</th><th class="num">Quantité</th><th class="num">Seuil min.</th><th>Statut</th></tr></thead>
+        <tbody id="alerts"></tbody>
+      </table></div>
+    </section>
   </main>
   <script src="js/api.js"></script>
   <script src="js/dashboard.js"></script>
