@@ -1,0 +1,135 @@
+AUDIT FINAL — GESTION DE STOCK JS
+Date : 15/11/2026
+
+1. CONCLUSION
+
+L'application est opérationnelle sur http://localhost:8003/. Express sert
+maintenant l'accueil à la racine, les pages et ressources statiques, et les
+19 routes API du contrat. La base réellement utilisée pendant l'audit était
+gestion_stock_js sur MariaDB 10.4.32. Aucune modification du schéma SQL n'a
+été nécessaire.
+
+Le processus Node qui occupait déjà le port 8003 a été redémarré après les
+corrections. L'accueil, la santé MySQL et les réponses 404 ont été revérifiés
+sur ce port.
+
+2. PROBLÈMES IDENTIFIÉS ET CORRIGÉS
+
+- Express ne servait le frontend que sous /app : GET / répondait 404.
+- /api/health répondait toujours « ok », sans vérifier MySQL.
+- Les fichiers frontend intégrés comportaient des parcours incomplets et
+  l'API JavaScript ne chargeait que la première page des listes.
+- La quantité d'un produit pouvait être changée hors des opérations de stock,
+  sans mouvement associé.
+- Les montants des ventes et approvisionnements étaient calculés en nombres
+  flottants JavaScript.
+- Les lignes répétées pour un même produit pouvaient fausser les contrôles de
+  stock ou être rejetées à tort.
+- Les transactions ne réessayaient pas les deadlocks et timeouts MySQL.
+- La pagination acceptait des valeurs mal formées et les paramètres de
+  requête inconnus étaient ignorés.
+- Plusieurs entrées monétaires invalides pouvaient produire une erreur 500
+  plutôt qu'une erreur de validation.
+- Le formulaire fournisseur avec e-mail facultatif rejetait une valeur vide.
+- Le dépôt ne contenait aucun test automatisé exécutable (0 test avant audit).
+
+3. FICHIERS MODIFIÉS
+
+- src/app.js : fichiers statiques à la racine et sous /app, contrôle MySQL
+  dans /api/health et réponses 404 distinctes pour pages/API.
+- src/server.js : chargement du .env relatif au projet plutôt qu'au seul
+  répertoire courant.
+- src/middlewares/error.js : erreurs JSON mal formées/trop volumineuses et
+  réponses 404 cohérentes.
+- src/controllers/products.js, sales.js, stock.js, categories.js et
+  suppliers.js : validation stricte, identifiants/quantités/montants validés,
+  e-mail fournisseur facultatif accepté.
+- src/services/helpers.js : pagination stricte, validation d'identifiants,
+  validation monétaire et calculs exacts en centimes.
+- src/services/transactions.js : helper transactionnel commun, rollback et
+  jusqu'à trois tentatives pour les erreurs MySQL 1213/1205.
+- src/services/products.js : stock initial nul et modification du stock
+  réservée aux entrées/ventes historisées.
+- src/services/stock.js et sales.js : verrouillage déterministe des produits,
+  gestion des lignes dupliquées et calculs exacts.
+- src/services/categories.js : possibilité d'effacer une description.
+- public/products.html et public/js/products.js : quantité affichée sans
+  modification directe depuis la fiche produit.
+- public/js/api.js : chargement paginé complet pour les listes de produits,
+  catégories et fournisseurs.
+- README.md, CONTRAT_API.md et tests/README.md : démarrage, règles de stock,
+  état de santé et tests documentés.
+- tests/helpers.test.js et tests/transactions.test.js : tests ciblés ajoutés.
+- database/schema.sql et database/seed.sql : non modifiés.
+
+Les autres évolutions frontend déjà présentes dans le worktree ont été
+préservées et utilisées pour l'intégration, sans réécrire l'application.
+
+4. FONCTIONNALITÉS VALIDÉES
+
+- Tableau de bord et alertes OK/LOW/OUT alimentés par MySQL.
+- Création, lecture, modification et suppression de produit; suppression
+  confirmée avec HTTP 204 et lecture ultérieure HTTP 404.
+- Création, lecture et modification des catégories et fournisseurs.
+- Approvisionnement avec mouvement IN et mise à jour atomique du stock.
+- Historique des mouvements.
+- Vente, historique et détail de vente.
+- Mise à jour du stock et du tableau de bord après vente.
+- Refus d'une vente excédant le stock (409 INSUFFICIENT_STOCK).
+- Deux ventes concurrentes de 4 unités sur un stock de 7 : une seule vente
+  acceptée, l'autre rejetée en 409, stock final jamais négatif.
+- Validation de quantité invalide, pagination invalide, paramètre inconnu et
+  stock initial non nul : réponses 400 au format API.
+- Santé MySQL : HTTP 200 quand la base est accessible; HTTP 503
+  DB_UNAVAILABLE quand le serveur a été lancé avec une base inexistante.
+- Pages / et /app/, routes inexistantes, liens et ressources frontend.
+
+5. TESTS RÉELLEMENT EXÉCUTÉS
+
+- `Set-Location 'gestion_stock_js'; npm test` : 4 tests passés, 0 échec.
+- `node --check` sur 33 fichiers JavaScript backend, frontend et tests :
+  aucune erreur de syntaxe.
+- `git diff --check` : aucun problème d'espacement.
+- Parcours navigateur sur /, products.html, categories.html, suppliers.html,
+  stock.html et sales.html : aucune erreur JavaScript/pageerror ou console
+  pendant les chargements normaux.
+- Tests REST/UI sur une instance temporaire : création/modification
+  catégorie, fournisseur et produit; entrée de stock de 10 unités; vente de
+  3 unités à 0,10 (total 0,30); refus de vente excédentaire; ventes
+  concurrentes; dernière vente et stock à zéro; détail et tableau de bord.
+- Contrôle direct de MariaDB : MariaDB 10.4.32, 8 tables attendues.
+  Les stocks correspondaient aux mouvements et les totaux des ventes et
+  approvisionnements aux lignes avant/après les tests.
+- Les données temporaires de l'audit ont été supprimées; la base est revenue
+  aux comptes observés avant les tests : 3 catégories, 2 fournisseurs,
+  6 produits, 2 approvisionnements, 3 ventes et 12 mouvements.
+
+6. POINTS RESTANTS
+
+- L'authentification est absente conformément au contrat MVP actuel; ne pas
+  exposer cette application à un réseau non fiable sans ajouter un contrôle
+  d'accès.
+- Le contrat ne prévoit pas de suppression de catégorie ni de fournisseur;
+  ces actions ne sont donc pas exposées par l'interface/API.
+- Le parcours de bout en bout a été exécuté manuellement contre la vraie
+  base; les tests automatisés persistants couvrent les helpers et transactions,
+  pas l'ensemble du scénario MySQL dans une base de test dédiée.
+- Pour la création d'un produit, le stock doit être 0; utiliser ensuite une
+  entrée de stock pour garantir l'historique des mouvements.
+
+7. COMMANDES DE DÉMARRAGE (POWERSHELL)
+
+Depuis `C:\xampp\htdocs\Tp_javascript` :
+
+    Set-Location 'C:\xampp\htdocs\Tp_javascript\gestion_stock_js'
+    if (-not (Test-Path '.env')) { Copy-Item '.env.example' '.env' }
+    npm install
+    npm start
+
+Configurer les variables DB_* de .env et importer database/schema.sql avant
+le premier démarrage. database/seed.sql est facultatif. En développement :
+
+    npm run dev
+
+URL de l'application : http://localhost:8003/
+URL de santé : http://localhost:8003/api/health

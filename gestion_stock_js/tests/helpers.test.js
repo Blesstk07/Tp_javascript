@@ -2,9 +2,11 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const {
   addMoney,
+  moneySchema,
   multiplyMoney,
   normalizeMoney,
   parsePagination,
+  positiveIdSchema,
 } = require('../src/services/helpers');
 
 test('pagination accepts valid bounds and rejects malformed or unknown parameters', () => {
@@ -20,6 +22,8 @@ test('pagination accepts valid bounds and rejects malformed or unknown parameter
 
 test('money normalization and totals use exact cents', () => {
   assert.equal(normalizeMoney('1.2'), '1.20');
+  assert.equal(moneySchema.safeParse('').success, false);
+  assert.equal(positiveIdSchema.safeParse('0x10').success, false);
   assert.equal(addMoney('0.10', '0.20'), '0.30');
   assert.equal(multiplyMoney('0.10', 3), '0.30');
   assert.throws(() => normalizeMoney('-1.00'), { status: 400, code: 'VALIDATION_ERROR' });

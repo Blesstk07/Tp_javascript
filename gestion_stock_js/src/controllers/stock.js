@@ -1,24 +1,20 @@
 const { z } = require('zod');
 const service = require('../services/stock');
-const { moneySchema } = require('../services/helpers');
+const {
+  moneySchema,
+  positiveIdSchema,
+  positiveQuantitySchema,
+} = require('../services/helpers');
 
-const idValue = z.union([
-  z.number().int().positive(),
-  z.string().regex(/^[1-9]\d*$/).transform(Number),
-]).pipe(z.number().int().positive().max(Number.MAX_SAFE_INTEGER));
-const quantityValue = z.union([
-  z.number().int().positive(),
-  z.string().regex(/^[1-9]\d*$/).transform(Number),
-]).pipe(z.number().int().positive().max(4294967295));
 const stockEntrySchema = z.object({
-  supplier_id: idValue.optional(),
-  supplierId: idValue.optional(),
+  supplier_id: positiveIdSchema.optional(),
+  supplierId: positiveIdSchema.optional(),
   notes: z.string().trim().max(255).optional().nullable(),
   items: z.array(
     z.object({
-      product_id: idValue.optional(),
-      productId: idValue.optional(),
-      quantity: quantityValue,
+      product_id: positiveIdSchema.optional(),
+      productId: positiveIdSchema.optional(),
+      quantity: positiveQuantitySchema,
       unit_cost: moneySchema.optional(),
       unitCost: moneySchema.optional(),
     }).strict().refine((item) => item.product_id || item.productId, {

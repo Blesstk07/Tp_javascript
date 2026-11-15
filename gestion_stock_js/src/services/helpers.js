@@ -2,6 +2,18 @@ const { z } = require('zod');
 
 const MAX_UNIT_CENTS = 999999999999n;
 const MAX_TOTAL_CENTS = 99999999999999n;
+const positiveIdSchema = z.union([
+  z.number().int().positive(),
+  z.string().regex(/^[1-9]\d*$/).transform(Number),
+]).pipe(z.number().int().positive().max(Number.MAX_SAFE_INTEGER));
+const quantitySchema = z.union([
+  z.number().int().nonnegative(),
+  z.string().regex(/^(0|[1-9]\d*)$/).transform(Number),
+]).pipe(z.number().int().nonnegative().max(4294967295));
+const positiveQuantitySchema = z.union([
+  z.number().int().positive(),
+  z.string().regex(/^[1-9]\d*$/).transform(Number),
+]).pipe(z.number().int().positive().max(4294967295));
 
 function toHttpError(status, code, message, details = []) {
   const error = new Error(message);
@@ -93,16 +105,15 @@ function multiplyMoney(amount, quantity) {
   return formatMoneyCents(parseMoneyCents(amount, MAX_UNIT_CENTS) * BigInt(quantity));
 }
 
-const moneySchema = z.union([z.string(), z.number()]).transform((value) => String(value).trim())
-  .refine((value) => {
-    if (!value) return false;
-    try {
-      parseMoneyCents(value, MAX_UNIT_CENTS);
-      return true;
-    } catch {
-      return false;
-    }
-  }, 'Montant invalide');
+function isValidUnitMoney(value) {
+  if (!value || !/^\d+(?:\.\d{1,2})?$/.test(value)) return false;
+  const [whole, fraction = ''] = value.split('.');
+  return BigInt(whole) * 100n + BigInt(fraction.padEnd(2, '0')) <= MAX_UNIT_CENTS;
+}
+
+const moneySchema = z.union([z.string(), z.number()])
+  .transform((value) => String(value).trim())
+  .refine(isValidUnitMoney, 'Montant invalide');
 
 function normalizeProductPayload(body = {}) {
   const normalized = { ...body };
@@ -163,6 +174,9 @@ module.exports = {
   MAX_UNIT_CENTS,
   parsePagination,
   parseResourceId,
+  positiveIdSchema,
+  quantitySchema,
+  positiveQuantitySchema,
   parseMoneyCents,
   normalizeMoney,
   addMoney,

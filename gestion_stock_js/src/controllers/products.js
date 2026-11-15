@@ -1,23 +1,24 @@
 const { z } = require('zod');
 const service = require('../services/products');
-const { moneySchema, parseResourceId } = require('../services/helpers');
+const {
+  moneySchema,
+  parseResourceId,
+  positiveIdSchema,
+  quantitySchema,
+} = require('../services/helpers');
 
-const quantityValue = z.union([
-  z.number().int().nonnegative(),
-  z.string().regex(/^(0|[1-9]\d*)$/).transform(Number),
-]).pipe(z.number().int().nonnegative().max(4294967295));
 const productFields = z.object({
-  category_id: z.coerce.number().int().positive(),
+  category_id: positiveIdSchema,
   name: z.string().trim().min(1).max(150),
   sku: z.string().trim().min(1).max(80),
   description: z.string().trim().max(2000).nullable().optional(),
   purchase_price: moneySchema,
   sale_price: moneySchema.optional(),
   selling_price: moneySchema.optional(),
-  quantity: quantityValue.optional(),
-  stock_quantity: quantityValue.optional(),
-  min_quantity: quantityValue.optional(),
-  alert_threshold: quantityValue.optional(),
+  quantity: quantitySchema.optional(),
+  stock_quantity: quantitySchema.optional(),
+  min_quantity: quantitySchema.optional(),
+  alert_threshold: quantitySchema.optional(),
 }).strict();
 const productSchema = productFields.refine(
   (payload) => payload.sale_price !== undefined || payload.selling_price !== undefined,

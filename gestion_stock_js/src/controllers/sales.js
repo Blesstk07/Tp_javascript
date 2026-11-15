@@ -1,19 +1,15 @@
 const { z } = require('zod');
 const service = require('../services/sales');
-const { parseResourceId } = require('../services/helpers');
+const {
+  parseResourceId,
+  positiveIdSchema,
+  positiveQuantitySchema,
+} = require('../services/helpers');
 
-const idValue = z.union([
-  z.number().int().positive(),
-  z.string().regex(/^[1-9]\d*$/).transform(Number),
-]).pipe(z.number().int().positive().max(Number.MAX_SAFE_INTEGER));
-const quantityValue = z.union([
-  z.number().int().positive(),
-  z.string().regex(/^[1-9]\d*$/).transform(Number),
-]).pipe(z.number().int().positive().max(4294967295));
 const saleItemSchema = z.object({
-  product_id: idValue.optional(),
-  productId: idValue.optional(),
-  quantity: quantityValue,
+  product_id: positiveIdSchema.optional(),
+  productId: positiveIdSchema.optional(),
+  quantity: positiveQuantitySchema,
 }).strict().refine((item) => item.product_id || item.productId, {
   message: 'product_id requis',
   path: ['product_id'],
